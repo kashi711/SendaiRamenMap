@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script type="text/javascript" src="https://maps.google.com/maps/api/js?sensor=true"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <title>仙台ラーメンマップ</title>
+    {% load staticfiles %}
+    <link rel="shortcut icon" href="{% static 'myapp/favicon.ico' %}">
+
+    <!-- Bootstrap -->
+    <link href="{% static 'myapp/css/bootstrap.min.css' %}" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+          <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+          <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+
+    <style>
+        .red, .red a {
+            color: #f00;
+        }
+        .mystyle_t {
+            padding-top: 10px;
+        }
+        .mystyle_l {
+            padding-left: 10px;
+            margin-left: 50px;
+        }
+        .mystyle2 {
+            padding-bottom:10px;
+        }
+
+        .border {
+            color: #333333;
+            margin: 0 0 20px;
+            padding: 13px 20px;
+            background-color: #ffffff;
+        }
+        .blue {
+            color: #333333;
+            background-color: #ffffff;
+            border-color: #0d50db;
+        }
+        .blue2 {
+            color: #333333;
+            background-color: #ffffff;
+            border-color: #00b6d7;
+        }
+        .blue3 {
+            color: #333333;
+            background-color: #ffffff;
+            border-color: #00d1c5;
+        }
+        .bottomline-dashed {
+            border-bottom-width: 1px;
+            border-bottom-style: dashed;
+        }
+        .leftline7 {
+            border-left-width: 7px;
+            border-left-style: solid;
+        }
+
+        table.sample {
+            width: 50%;
+        }
+        .eval_width {
+            width:50px;
+            height:30px;
+        }
+        .button_width {
+            width:70px;
+        }
+
+        .float {
+            float:right;
+            padding-left:1em;
+        }
+        .float2 {
+            float:left;
+            padding-right:1em;
+        }
+        footer {
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <img class="center-block" src="{% static 'myapp/title1.png' %}" />
+    <nav class="navbar navbar-default" role="navigation">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <!-- 画面サイズが小さい時に表示されるボタン -->
+                <!-- data-targetにollapseを指定したdivのidを指定すること -->
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#collapse-id">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="{% url 'index' %}"><strong  class="lead">ホーム</strong></a>
+            </div>
+            <div id="collapse-id">
+                <p><a class="navbar-brand" href="#info"><strong  class="lead" style="margin-left:60px;">店舗情報</strong></a></p>
+                <p><a class="navbar-brand" href="#myReview"><strong  class="lead" style="margin-left:30px;">Myレビュー</strong></a></p>
+                <p><a class="navbar-brand" href="#bbs"><strong  class="lead" style="margin-left:30px;">みんなのレビュー</strong></a></p>
+                <form class="navbar-form text-right" action="{% url 'result' %}" method='post'>
+		    {% if not username %}
+                    <div class="form-group">
+                        <!--<p class="navbar-text">検索</p>-->
+                        <input type="text" class="form-control mystyle_t" name="keyword" placeholder="キーワード">
+                        <button type="submit" name="ButtonType" value = "search" class="btn btn-default glyphicon glyphicon-search"></button>
+                        <button type="submit" name="ButtonType" value = "open" title="現在営業中のお店を検索" class="btn btn-default glyphicon glyphicon-time"></button>
+                        <button type="button" class="btn btn-info btn-sm mystyle_l" onclick="location.href='{% url 'loginpage' %}'">ログイン</button>
+                        <button type="button" class="btn btn-warning btn-sm" onclick="location.href='{% url 'make' %}'">新規登録</button>
+                    </div>
+                    {% else %}
+                    <div class="form-group">
+                        <!--<p class="navbar-text">検索</p>-->
+                        <p class="mystyle_t">
+                            <input type="text" class="form-control mystyle_t" name="keyword" placeholder="キーワード">
+                            <button type="submit" name="ButtonType" value = "search" class="btn btn-default glyphicon glyphicon-search"></button>
+                            <button type="submit" name="ButtonType" value = "open" title="現在営業中のお店を検索" class="btn btn-default glyphicon glyphicon-time"></button>
+                            <b class="mystyle_l" style="font-size:18px; margin-bottom:30px;">{{username}} さん　</b>
+                            <button type="button" class="btn btn-success btn-sm" onclick="location.href='{% url 'out' %}'">ログアウト</button>
+                        </p>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </nav>
+    <h3> </h3>
+
+<!--  店舗情報   -->
+    <div id="info">
+        <h2 class="border blue bottomline-dashed leftline7" style="margin-left:10px;">店舗情報</h2>
+    </div>
+
+    <div class="float">
+        <div id="gmap" style="width: 750px; height: 400px; margin-right: 80px;"></div>
+    </div>
+
+    <div class="container float2" style="width:500px; margin-left:40px; margin-top:20px;">
+        <div class="container">
+            <table class="table sample"style="font-size:20px;">
+                <tr>
+                    <th>店名</th>
+                    <td>{{ shop.name }}</td>
+                </tr>
+                <tr>
+                    <th>電話番号</th>
+                    <td>{{ shop.tell }}</td>
+                </tr>
+                <tr>
+                    <th>住所</th>
+                    <td>{{ shop.address }}</td>
+                </tr>
+                <tr>
+                    <th>営業時間</th>
+                    <td>{{ shop.opening }}</td>
+                </tr>
+                <tr>
+                    <th>定休日</th>
+                    <td>{{ shop.closed }}</td>
+                </tr>
+                <tr>
+                    <th>フォト</th>
+                    {% ifequal shop.photo "NoImage.png" %}
+                    <td><img src="/static/myapp/{{ shop.photo }}" width="193" height="130"></td>
+                    {% else %}
+                    <td><img src="{{ shop.photo }}" width="193" height="130"><p style="font-size:10px;">写真提供：ホットペッパー FooMoo</p></td>
+                    {% endifequal %}
+                </tr>
+            </table>
+            <p><span style="font-size: 18px;"><a href="{% url 'similarity' shop.id %}">>>類似のお店を探す</a></span></p>
+        </div>
+    </div>
+
+
+<!--  マイレビュー   -->
+    <div id="myReview" style="clear:both">
+        <h2 class="border blue2 bottomline-dashed leftline7" style="margin-left:10px;">Myレビュー</h2>
+    </div>
+    {% if not my_review %}
+    <!-- ログインしていない -->
+    <div class="container panel-group" style="margin-left:30px;margin-bottom:0px;">
+        <div class="row panel panel-info">
+            <div class="panel-heading">
+
+                <h2>ログインしてください</h2>
+            </div>
+            <div class="panel-body">
+                <p class="lead" style="margin-left:30px;margin-top:10px;">ログインするとMyレビューを保存したり投稿することができるようになります</p>
+                <div class="row">
+                    <div class="col-md-7"></div>
+                    <div class="col-md-3">
+                        <p>アカウントをお持ちの方はこちら</p>
+                        <button type="button" class="btn btn-info btn-sm mystyle_l" onclick="location.href='{% url 'loginpage' %}'">ログイン</button>
+                    </div>
+
+                    <div class="col-md-2">
+                        <p>初めての方はこちら</p>
+                        <button type="button" class="btn btn-warning btn-sm" style="margin-left:25px;" onclick="location.href='{% url 'make' %}'">新規登録</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- ログイン済み -->
+    <div class="container panel-group" style="margin-left:30px;margin-bottom:0px;">
+        <div class="row panel panel-info">
+            {% ifequal my_review "empty" %}
+            <!-- 未記入 -->
+            <div class="panel-heading">
+                <h2>まだ "{{ shop.name }}" のMyレビューを書いていません</h2>
+            </div>
+            <div class="panel-body">
+                <h2 class="panel-title" style="border-bottom: solid 5px #767676;border-width: 1px;">
+					<b style="font-size:20px;margin-left:10px;color:#767676"">評価　：　</b><img src="{% static 'myapp/star0.png' %}" style="margin-bottom:5px;" />
+                </h2>
+                <p class="lead" style="margin-left:30px;margin-top:10px;color:#767676">Myレビューを書いて投稿してみませんか？</p>
+            </div>
+            {% else %}
+            <!-- 記入済み -->
+            <div class="panel-heading">
+                <h2>{{ my_review.title }}</h2>
+            </div>
+            <div class="panel-body">
+                <h2 class="panel-title" style="border-bottom: solid 5px #767676;border-width: 1px;">
+					<b style="font-size:20px;margin-left:10px;">評価　：　</b><img src="/static/myapp/star{{ my_review.evaluation }}.png" style="margin-bottom:5px;" />
+                </h2>
+                <p class="lead" style="margin-left:30px;margin-top:10px;">{{ my_review.comment }}</p>
+            </div>
+            <p class="text-right" style="font-size:16px;">
+                更新日時：{{ my_review.pub_date }}　
+            </p>
+            {% endifequal %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!--　モーダル表示のためのボタン -->
+        <button class="btn text-right col-md-1 button_width" data-toggle="modal" data-target="#modal-example" style="background-color: #00b6d7; margin-left: 60px; margin-bottom: 20px; margin-top: 10px; font-size:20px;">
+            <span style="color: white">編集</span>
+        </button>
+        {% ifequal my_review "empty" %}
+        <input type="submit" disabled="disabled" class="btn btn-primary btn-default col-md-1 button_width" style="font-size:20px; margin-left: 10px; margin-bottom: 20px; margin-top: 10px;" value="投稿">
+        {% else %}
+          {% if error_message %}
+          <input type="submit" disabled="disabled" class="btn btn-primary btn-default col-md-1 button_width" style="font-size:20px; margin-left: 10px; margin-bottom: 20px; margin-top: 10px;" value="投稿">
+          {% else %}
+        <form action="{% url 'post' shop.id %}" method='post'>
+            <input type="hidden" name="eval" value={{ my_review.evaluation }}>
+            <input type="hidden" name="title" value="{{ my_review.title }}">
+            <input type="hidden" name="comment" value="{{ my_review.comment }}">
+            <input type="submit" class="btn btn-primary btn-default col-md-1 button_width" style="font-size:20px; margin-left: 10px; margin-bottom: 20px; margin-top: 10px;" value="投稿">
+        </form>
+          {% endif %}
+        {% endifequal %}
+    </div>
+    {% if error_message %}
+    <p class="glyphicon glyphicon-warning-sign" style="margin-left:30px;color:#f00;"> {{ error_message }}</p>
+    {% endif %}
+
+ 
+    <!-- モーダルの配置 -->
+    <div class="modal" id="modal-example" tabindex="-1">
+        <div class="modal-dialog">
+            <!-- モーダルのコンテンツ -->
+            <div class="modal-content">
+                <!-- モーダルのヘッダ -->
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    <h4 class="modal-title" id="modal-label">
+                        Myレビュー
+                    </h4>
+                </div>
+                <!-- モーダルのボディ -->
+                <form action="{% url 'preserve' shop.id %}" method='post'>
+                    <div class="modal-body">
+                        <div class="form-inline">
+                            <label>評価</label>
+                            <select name="my_eval" class="eval_width" style="margin-bottom: 20px; margin-left:20px;">
+                                {% for num in num_list %}
+                                  {% ifequal my_review.evaluation num %}
+                                     <option selected value={{ num }}>{{ num }}</option>
+                                  {% else %}
+                                     <option value={{ num }}>{{ num }}</option>
+                                  {% endifequal %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <label>タイトル</label><br />
+                        {% ifequal my_review "empty" %}
+                        <textarea cols="65" name="my_title" rows="1" style="height:25px;"></textarea>
+                        {% else %}
+                        <textarea cols="65" name="my_title" rows="1" style="height:25px;">{{ my_review.title }}</textarea>
+                        {% endifequal %}
+                        <br />
+                        <label>コメント</label><br />
+                        <textarea cols="65" id="id_content" name="my_comment" rows="10">{{ my_review.comment }}</textarea>
+                    </div>
+                    <!-- モーダルのフッタ -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">閉じる</button>
+                        <input type="submit" class="btn btn-primary btn-default" value="保存">
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+   {% endif %}
+
+    <h1></h1>
+
+
+<!--  みんなのレビュー   -->
+    <div id="bbs" style="clear: both">
+        <h2 class="border blue3 bottomline-dashed leftline7" style="margin-left: 10px;margin-top:50px;">みんなのレビュー</h2>
+    </div>
+  {% if bbs_list %}
+    <!-- コメントが投稿されている -->
+    <div style="margin-left:50px; margin-bottom:20px; width:600px; border:rgba(0, 232, 255, 0.13) inset 5px; background-color:rgba(0, 255, 99, 0.03)">
+        <div>
+            <h3 class="text-center">{{ shop.name }}の評価&nbsp; ：&nbsp;<span style="font-size: 32px;">{{ eval.evaluation }}</span>　<span style="font-size: 18px;">({{ eval.total }}件のレビュー)</span></h3>
+            <img src="/static/myapp/star{{ eval.int_eval }}.png" style="width: 50%; height: 50%; margin-left: 100px; margin-bottom: 20px;" />
+        </div>
+    {% for ratio in ratios %}
+        <p class="float2" style="margin-left: 120px; margin-right: 0px;">星{{ forloop.revcounter }}</p>
+        <div class="progress" style="width: 250px; margin-left: 30px;">
+            {% ifequal  forloop.revcounter 5%}
+            <div class="progress-bar  progress-bar-warning" style="width: {{ ratio }}%">{{ eval.five }}</div>
+            {% endifequal %}
+            {% ifequal  forloop.revcounter 4%}
+            <div class="progress-bar  progress-bar-warning" style="width: {{ ratio }}%">{{ eval.four }}</div>
+            {% endifequal %}
+            {% ifequal  forloop.revcounter 3%}
+            <div class="progress-bar  progress-bar-warning" style="width: {{ ratio }}%">{{ eval.three }}</div>
+            {% endifequal %}
+            {% ifequal  forloop.revcounter 2%}
+            <div class="progress-bar  progress-bar-warning" style="width: {{ ratio }}%">{{ eval.two }}</div>
+            {% endifequal %}
+            {% ifequal  forloop.revcounter 1%}
+            <div class="progress-bar  progress-bar-warning" style="width: {{ ratio }}%">{{ eval.one }}</div>
+            {% endifequal %}
+        </div>
+    {% endfor %}
+    </div>
+
+   {% for bbs in bbs_list %}
+    {% ifequal bbs.name username %}
+    <!-- ログインユーザの投稿 -->
+    <div class="container panel-group" style="margin-left:30px;margin-bottom:25px;margin-top:20px;">
+        <div class="row panel panel-success">
+            <div class="panel-heading">
+                <h2>{{ bbs.title }}</h2>
+            </div>
+            <div class="panel-body">
+                <h2 class="panel-title" style="border-bottom: solid 5px #767676;border-width: 1px;">
+					<b style="font-size:20px;margin-left:10px;">評価　：　</b><img src="/static/myapp/star{{ bbs.evaluation }}.png" style="margin-bottom:5px;" />
+                </h2>
+                <p class="lead" style="margin-left:30px;margin-top:10px;">{{ bbs.comment }}</p>
+            </div>
+
+
+            <div class="row">
+                <!--　モーダル表示のためのボタン -->
+                <button class="btn btn-info text-right col-md-1 button_width btn-xs" data-toggle="modal" data-target="#modal{{ bbs.id }}" style="margin-left: 60px; margin-bottom: 20px; margin-top: 10px; font-size: 20px;">
+                    <span style="color: white">編集</span>
+                </button>
+                <form action="{% url 'delete' shop.id %}" method='post'>
+                    <input type="hidden" name="id" value={{ bbs.id }}>
+                    <input type="submit" class="btn btn-danger btn-xs col-md-1 button_width" style="font-size: 20px; margin-left: 10px; margin-bottom: 20px; margin-top: 10px;" value="削除">
+                </form>
+                <p class="text-right col-md-9" style="font-size: 16px; margin-left:80px;margin-right:0px;">
+                    投稿者：{{ bbs.name }}　　<br />
+                    投稿日時：{{ bbs.pub_date }}　
+                </p>
+            </div>
+        </div>
+    </div>
+    <!-- モーダルのコンテンツ -->
+    <div class="modal" id="modal{{ bbs.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <!-- モーダルのヘッダ -->
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    <h4 class="modal-title" id="H1">
+                        投稿したMyレビュー
+                    </h4>
+                </div>
+                <!-- モーダルのボディ -->
+                <form action="{% url 'edit' shop.id %}" method='post'>
+                    <div class="modal-body">
+                        <div class="form-inline">
+                            <label>評価</label>
+                            <select name="eval" class="eval_width" style="margin-bottom: 20px; margin-left:20px;">
+                                {% for num in num_list %}
+                                  {% ifequal bbs.evaluation num %}
+                                     <option selected value={{ num }}>{{ num }}</option>
+                                  {% else %}
+                                     <option value={{ num }}>{{ num }}</option>
+                                  {% endifequal %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <label>タイトル</label><br />
+                        <textarea cols="65" name="title" rows="1" style="height:25px;">{{ bbs.title }}</textarea>
+                        <br />
+                        <label>コメント</label><br />
+                        <textarea cols="65" id="id_content" name="comment" rows="10">{{ bbs.comment }}</textarea>
+                        <input type="hidden" name="id" value={{ bbs.id }}>
+                    </div>
+                    <!-- モーダルのフッタ -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">閉じる</button>
+                        <input type="submit" class="btn btn-primary btn-default" value="保存">
+                        <!--<button type="button" class="btn btn-primary">保存</button>-->
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    {% else %}
+    <!-- ログインユーザ以外の投稿 -->
+    <div class="container panel-group" style="margin-left:30px;margin-bottom:25px;">
+        <div class="row panel panel-success">
+            <div class="panel-heading">
+                <h2>{{ bbs.title }}</h2>
+            </div>
+            <div class="panel-body">
+                <h2 class="panel-title" style="border-bottom: solid 5px #767676;border-width: 1px;">
+					<b style="font-size:20px;margin-left:10px;">評価　：　</b><img src="/static/myapp/star{{ bbs.evaluation }}.png" style="margin-bottom:5px;" />
+                </h2>
+                <p class="lead" style="margin-left:30px;margin-top:10px;">{{ bbs.comment }}</p>
+            </div>
+            <p class="text-right" style="font-size:16px;">
+                投稿者：{{ bbs.name }}　　<br />
+                投稿日時：{{ bbs.pub_date }}　
+            </p>
+        </div>
+    </div>
+    {% endifequal %}
+      {% if bbs_flag %}
+      {% ifequal forloop.counter 5 %}
+        <h2 class="text-center" style="margin-right:300px;"><a href="{% url 'detail_more' shop.id %}">&lt;&lt;もっと見る&gt;&gt;</a></h2>
+      {% endifequal %}
+      {% endif %}
+   {% endfor %}
+    <footer class="container-fluid">
+        <small style="color:#00a9ff;margin-right:20px;">Copyright (C) 2015 kashiwaba All Rights Reserved.</small>
+        <p class="text-right">Powered by <a href="http://www.hotpepper.jp/">ホットペッパー FooMoo</a></p>
+    </footer>
+
+  {% else %}
+    <!-- コメントがまだ投稿されてない -->
+    <div style="margin-left:50px; margin-bottom:20px; width:600px; border:rgba(0, 232, 255, 0.13) inset 5px; background-color:rgba(0, 255, 99, 0.03)">
+        <div>
+            <h3 class="text-center">{{ shop.name }}の評価&nbsp; ：&nbsp;<span style="font-size: 32px;">---</span>　<span style="font-size: 18px;">(0件のレビュー)</span></h3>
+            <img src="/static/myapp/star0.png" style="width: 50%; height: 50%; margin-left: 100px; margin-bottom: 20px;" />
+        </div>
+
+        <p class="float2" style="margin-left: 120px; margin-right: 0px;">星5</p>
+        <div class="progress" style="width: 150px; margin-left: 30px;">
+            <div class="progress-bar  progress-bar-warning" style="width: 0%">0</div>
+        </div>
+        <p class="float2" style="margin-left: 120px; margin-right: 0px;">星4</p>
+        <div class="progress" style="width: 150px; margin-left: 30px;">
+            <div class="progress-bar  progress-bar-warning" style="width: 0%">0</div>
+        </div>
+        <p class="float2" style="margin-left: 120px; margin-right: 0px;">星3</p>
+        <div class="progress" style="width: 150px; margin-left: 30px;">
+            <div class="progress-bar  progress-bar-warning" style="width: 0%">0</div>
+        </div>
+        <p class="float2" style="margin-left: 120px; margin-right: 0px;">星2</p>
+        <div class="progress" style="width: 150px; margin-left: 30px;">
+            <div class="progress-bar  progress-bar-warning" style="width: 0%">0</div>
+        </div>
+        <p class="float2" style="margin-left: 120px; margin-right: 0px;">星1</p>
+        <div class="progress" style="width: 150px; margin-left: 30px;">
+            <div class="progress-bar  progress-bar-warning" style="width: 0%">0</div>
+        </div>
+    </div>
+    <h3 style="margin-left:100px;">まだコメントが投稿されていません</h3>
+    <p></p>
+    <p style="margin-left:500px;margin-bottom:600px;"><a href="#myReview">Myレビューを投稿してみませんか？</a></p>
+    <h1>
+    <footer class="container-fluid">
+        <small style="color:#00a9ff;font-size:12px;">Copyright (C) 2015 kashiwaba All Rights Reserved.</small>
+        <p class="text-right" style="font-size:14px;">Powered by <a href="http://www.hotpepper.jp/">ホットペッパー FooMoo</a></p>
+    </footer>
+  {% endif %}
+
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script type="text/javascript">
+        $(function () {
+            var From = "仙台駅";
+            var To = "{{ shop.address }}";
+
+            google.maps.event.addDomListener(window, 'load', function () {
+                var lng = 139.90744471549988;
+                var lat = 35.7399986893804;
+                var latlng = new google.maps.LatLng(lat, lng);
+                var markerObj;
+                var mapObj;
+
+                var map = document.getElementById("gmap");
+                var mapOptions = {
+                    zoom: 15,
+                    center: new google.maps.LatLng(lat, lng),
+                    mapTypeId: google.maps.MapTypeId.ROADMAP,
+                    scaleControl: true,
+                };
+                mapObj = new google.maps.Map(map, mapOptions);
+
+                new google.maps.DirectionsService().route({
+                    origin: From,
+                    destination: To,
+                    travelMode: google.maps.DirectionsTravelMode.WALKING
+                }, function (result, status) {
+                    if (status == google.maps.DirectionsStatus.OK) {
+                        new google.maps.DirectionsRenderer({ map: mapObj }).setDirections(result);
+                    }
+                });
+            });
+        });
+    </script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="{% static 'myapp/js/bootstrap.min.js' %}"></script>
+</body>
+</html>

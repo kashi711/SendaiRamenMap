@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>仙台ラーメンマップ</title>
+    {% load staticfiles %}
+    <link rel="shortcut icon" href="{% static 'myapp/favicon.ico' %}">
+
+    <!-- Bootstrap -->
+    <link href="{% static 'myapp/css/bootstrap.min.css' %}" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+          <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+          <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+
+    <style>
+        .red, .red a {
+            color: #f00;
+        }
+        footer {
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+
+</head>
+<body>
+    <img class="center-block" src="{% static 'myapp/title1.png' %}" />
+    <nav class="navbar navbar-default" role="navigation">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <!-- 画面サイズが小さい時に表示されるボタン -->
+                <!-- data-targetにollapseを指定したdivのidを指定すること -->
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#collapse-id">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="{% url 'index' %}"><strong  class="lead">ホーム</strong></a>
+            </div>
+        </div>
+    </nav>
+    <h3> </h3>
+    <div class="container panel-group">
+        <div class="panel panel-default center-block" style="width: 470px;">
+            <div class="panel-heading" style="background-color: rgba(255, 117, 0, 0.83);">
+                <h2></h2>
+                <h1 class="panel-title" style="color: #fff; font-size: 24px;">
+                    <b>新規アカウント作成</b>
+                </h1>
+                <h2></h2>
+            </div>
+            <div class="panel-body">
+                <form action="{% url 'makeAccount' %}"  method='post'>
+                    <div class="input-group" style="margin-top: 20px;">
+                        <span class="input-group-addon glyphicon glyphicon-user"></span>
+                        <input type="text" class="form-control" placeholder="ユーザ名" name='name' style="width: 390px; margin-top: 1px;">
+                    </div>
+
+                    <div class="input-group" style="margin-top: 40px;">
+                        <span class="input-group-addon glyphicon glyphicon-lock"></span>
+                        <input type="password" class="form-control" placeholder="パスワード" name='password' style="width: 390px; margin-top: 1px;">
+                    </div>
+
+                    {% if error_message %}
+                    <p class="center-block glyphicon glyphicon-warning-sign red" style="margin-top:15px; font-size:18px;">
+                        {{ error_message }}
+                    </p>
+                    {% endif %}
+
+                    <input type="submit" class="btn btn-warning btn-xl center-block" style="margin-top: 60px; font-size:20px; font-weight:bold" value="アカウントを作成">
+                </form>
+            </div>
+            <p class="text-right" style="margin-top:15px;">
+                　既にアカウントをお持ちですか？　
+                <br><b style="font-size:16px;"><a href="{% url 'loginpage' %}">ログイン</a>　　　　</b>
+            </p>
+        </div>
+    </div>
+    
+    <footer class="container-fluid">
+        <small style="color:#00a9ff;margin-right:20px;">Copyright (C) 2015 kashiwaba All Rights Reserved.</small>
+        <p class="text-right">Powered by <a href="http://www.hotpepper.jp/">ホットペッパー FooMoo</a></p>
+    </footer>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script type="text/javascript">
+    </script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="{% static 'myapp/js/bootstrap.min.js' %}"></script>
+</body>
+</html>

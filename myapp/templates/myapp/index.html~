@@ -1,0 +1,19 @@
+<h2>go mypage</h2>
+   <a href='/mypage/'>mypage</a><br />
+  <hr>
+   <h2>login</h2>
+     <form action='/enter/' method='post'>
+       name: <input type='text' name='name'><br />
+       pass: <input type='password' name='pass'><br />
+       <input type='submit' value='login'>
+     </form>
+  <hr>
+   <h2>logout</h2>
+     <a href='/out/'>logout</a>
+  <hr>
+    <h2>make new account</h2>
+    <form action='/make/' method='post'>
+      name: <input type='text' name='name'><br />
+      pass: <input type='password' name='pass'><br />
+      <input type='submit' value='make'>
+    </form>
