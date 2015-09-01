@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+### 店舗名リストの食べログレビューを拾ってきて
+### 形態素解析->tf-idf値の計算->tf-idfを特徴量としたk-meansクラスタリングを行うプログラム###
+
 import numpy as np
 from numpy import array
 from numpy.random import *
@@ -56,13 +59,13 @@ def make_AllNounsFlag(noun_list):
       all_nouns_flag[k]+=1
 
 
-#commentを形態素解析する
+#commentを形態素解析し、結果をnounsに追加して返す
 def morphological_analysis(comment,nouns):
   tagger=MeCab.Tagger("-Ochasen")
   comment = comment.encode('utf-8')
   node = tagger.parseToNode(comment)
   while node:
-    if unicode(node.feature.split(",")[0],'utf-8') == u"名詞" and isJapanese(node.surface):
+    if unicode(node.feature.split(",")[0],'utf-8') == u"名詞" and isJapanese(node.surface):  #名詞かつ日本語のみ取得
       nouns.setdefault(node.surface,0)
       nouns[node.surface]+=1
       all_nouns_total.setdefault(node.surface,0)
@@ -71,7 +74,7 @@ def morphological_analysis(comment,nouns):
   return nouns
 
 
-#Yahoo検索結果(HTML)から食べログのURLを取得
+#shop_nameで指定された店の食べログURLを取得
 def get_search_result(shop_name):
   #Yahoo検索結果(HTML)の取得
   shop_name = re.sub(' *','',shop_name)
@@ -80,6 +83,7 @@ def get_search_result(shop_name):
   root = lxml.html.fromstring(req.text)
   #検索結果の<a href=""></a>によるリンクを抽出し、目的のページのURLを取得
   anchors = root.xpath('//a')
+  #先頭が宮城の食べログURLと一致したものを探す
   for anchor in anchors:
     result = anchor.attrib['href']
     if re.match("http://tabelog.com/miyagi/", result):
@@ -89,28 +93,20 @@ def get_search_result(shop_name):
   return URL
 
 
-#URLの店のコメントを取得し,形態素解析した結果を返す
+#指定されたURLの店のコメントを取得し,形態素解析した結果を返す
 def get_nouns(URL):
   req = requests.get(URL)
   root = lxml.html.fromstring(req.text)
-  #ページのh1タグから正しいページかどうかを判定
-  h1s = root.xpath('//h1')
-  flag = False
-  for h1 in h1s:
-    result = h1.text
-    if re.search(shop_name, result):
-      flag = True
-      break
   #ページ内のコメントリンクを取得し，コメントを形態素解析する
+  #コメントリンクの取得
   anchors = root.xpath('//a[@class="rvw-item__rvw-title-target"]')
   nouns={}
   for anchor in anchors:
-    #コメントリンクの取得
     print("http://tabelog.com/" + anchor.attrib['href'])
     url_comment = "http://tabelog.com/" + anchor.attrib['href']
     request_comment = urllib2.urlopen(url_comment)
     html = unicode(request_comment.read(),'utf-8') 
-    #コメント
+    #コメント本体をhtmlの形で取得する
     m = re.search(u'<div class="rvw-item__rvw-comment" property="v:description">',html)
     comment = html[m.end():len(html)]
     m = re.search(u'</div>',comment)
@@ -122,7 +118,7 @@ def get_nouns(URL):
   return nouns
 
 
-#tf-idfを計算する
+#tf-idfを計算する(店ごとの単語・出現数辞書nounsとshop_listの長さNを入力)
 def calc_tfidf(nouns,N):
   tf = {}
   idf = {}
@@ -136,6 +132,7 @@ def calc_tfidf(nouns,N):
   return tfidf
 
 
+#tf-idfの特徴量を作る
 def make_feature(tfidf_list):
   feature_list = []
   for tfidf_tupple in tfidf_list:
@@ -153,22 +150,20 @@ def make_feature(tfidf_list):
 #k-means法でクラスタリングする
 def clustering(K,feature_list):
   cluster = []    #各店のクラスタ
+  #クラスタの初期化
   for var in range(0,len(feature_list)):
     #cluster += [var%K]
     cluster += [randint(0,K)]
-  old_cluster = [-1]*len(feature_list)    #反復中の一個前のクラスタ
   repeat = 50          #反復回数
+  
   #各クラスタの重心を初期化
   center = []    
   for k in range(0,K):
     vec = array([0]*len(feature_list[0][1]))
     center.append(vec)
+    
   #k-means法
   for var in range(0,repeat):
-    #print "loop : ",var
-    if old_cluster == cluster:
-      print var
-      #break
     #重心の計算
     total = [0]*K  #各クラスタの要素数
     for k in range(0,K):
@@ -183,7 +178,6 @@ def clustering(K,feature_list):
       except:
         center[k] = center[k]/1.0
     #各ベクトルのクラスタ再割り当て
-    old_cluster = cluster
     for i,feature in enumerate(feature_list):
       min_dist = 10000
       new_cluster = -1
@@ -197,113 +191,80 @@ def clustering(K,feature_list):
 
 
 
-
-
-
 if __name__ == "__main__":
+  #Djangoのデータベースから店名を取得し、店舗名リストshopsを作成
+  AllShops = Shop.objects.all()
+  shops = []
+  for s in AllShops:
+    shops.append(s.name)
+    
+  noun_list = []  #店名と名詞出現数のタプルのリスト
+  global all_nouns_total,all_nouns_flag
+  all_nouns_total = {}  #すべての店の名詞出現数辞書
+  all_nouns_flag = {}    #名詞がいくつの店で出現したかを保存する辞書
+  
+  
+  for shop_name in shops:
+    URL = get_search_result(shop_name)
+    URL = URL + "dtlrvwlst/"	#取得したURLにコメントページのURLを追加する
+    nouns = get_nouns(URL)
+    tuple1 = (shop_name,nouns)
+    noun_list.append(tuple1)	#店名と名詞の出現数をタプルにして保存する
+    for k,v in sorted(nouns.items(),key=lambda x:x[1]):
+      if v>1: print k,v
+    print (tuple1[0])
 
+  #tf-idfの計算で使うAllNounsFlagを作成
+  make_AllNounsFlag(noun_list)
 
-AllShops = Shop.objects.all()
-shops = []
-for s in AllShops:
-  shops.append(s.name)
-noun_list = []  #店名と名詞出現数のタプルのリスト
-global all_nouns_total,all_nouns_flag
-all_nouns_total = {}  #すべての店の名詞出現数辞書
-all_nouns_flag = {}    #名詞がいくつの店で出現したかを保存する辞書
-for shop_name in shops:
-  URL = get_search_result(shop_name)
-  URL = URL + "dtlrvwlst/"
-  nouns = get_nouns(URL)
-  #店名と名詞の出現数をタプルにして保存する
-  tuple1 = (shop_name,nouns)
-  noun_list.append(tuple1)
-  for k,v in sorted(nouns.items(),key=lambda x:x[1]):
-    if v>1: print k,v
-  print (tuple1[0])
-
-make_AllNounsFlag(noun_list)
-  #for k,v in sorted(all_nouns_flag.items(),key=lambda x:x[1]):
-  #    print k,v
-
-tfidf_list = []
-for t in noun_list:
-  tfidf = calc_tfidf(t[1],len(shops))
-  tuple1 = (t[0],tfidf)
-  tfidf_list.append(tuple1)
-  for k,v in sorted(tfidf.items(),key=lambda x:x[1]):
-    print k,v
-  print
-
-
-feature_list = make_feature(tfidf_list)
-
-print
-cluster = clustering(5,feature_list)
-print cluster
-for i,c in enumerate(cluster):
-  s = Shop.objects.get(pk=i+1)
-  s.cluster = c
-  s.save()
-
-for num in range(68,69):  
-  for i,shop in enumerate(shops):
-    if not i==num:
-      continue
-    keywords = []
-    tfidf = calc_tfidf(noun_list[i][1],len(shops))
-    for k,v in sorted(tfidf.items(),key=lambda x:x[1],reverse=True):
+  #各店舗ごとのtf-idfを計算し、店名とセットでリストに保存する
+  tfidf_list = []
+  for t in noun_list:
+    tfidf = calc_tfidf(t[1],len(shops))
+    tuple1 = (t[0],tfidf)
+    tfidf_list.append(tuple1)
+    for k,v in sorted(tfidf.items(),key=lambda x:x[1]):
       print k,v
-      if len(keywords)>=20:
-        break
-      keyword = k
-      flag = False
-      for i,var in enumerate(keywords):
-        if re.search(keyword,var):
-          flag = True
-        if re.search(var,keyword):
-          keywords[i] = keyword
-          flag = True
-      if not flag:
-        keywords.append(keyword)
-    keywords_text = ''
-    for keyword in keywords:
-      print keyword
-      keywords_text = keywords_text + "," + keyword
-  s = Shop.objects.get(pk=num+1)
-  s.tags = keywords_text
-  s.save()
+    print
 
+  #クラスタリングをするため特徴量として整形
+  feature_list = make_feature(tfidf_list)
 
-  #keywords = []
-  #tfidf = calc_tfidf(noun_list[3][1],len(shops))
-  #for k,v in sorted(tfidf.items(),key=lambda x:x[1],reverse=True):
-  #  print k,v
-  #  if len(keywords)>=20:
-  #    break
+  #各店舗ごとにクラスタをデータベースに登録
+  print
+  cluster = clustering(5,feature_list)
+  print cluster
+  for i,c in enumerate(cluster):
+    s = Shop.objects.get(pk=i+1)
+    s.cluster = c
+    s.save()
 
-  #  keyword = k
-  #  flag = False
-  #  for i,var in enumerate(keywords):
-  #    if re.search(keyword,var):
-  #      flag = True
-  #    if re.search(var,keyword):
-  #      keywords[i] = keyword
-  #      flag = True
-
-  # if not flag:
-  #   keywords.append(keyword)
-
-  #keywords_text = '';
-
-  #for keyword in keywords:
-  #  print keyword
-  #  keywords_text = keywords_text + "," + keyword
-
-  #print keywords_text
-
-  #print
-  #spl = keywords_text.split(",")
-  #for s in spl:
-  #  print s
+  #各店舗ごとにtf-idfの上位20位までをタグとしてデータベースに登録
+  for num in range(68,69):  
+    for i,shop in enumerate(shops):
+      if not i==num:
+        continue
+      keywords = []
+      tfidf = calc_tfidf(noun_list[i][1],len(shops))
+      for k,v in sorted(tfidf.items(),key=lambda x:x[1],reverse=True):
+        print k,v
+        if len(keywords)>=20:
+          break
+        keyword = k
+        flag = False
+        for i,var in enumerate(keywords):
+          if re.search(keyword,var):
+            flag = True
+          if re.search(var,keyword):
+            keywords[i] = keyword
+            flag = True
+        if not flag:
+          keywords.append(keyword)
+      keywords_text = ''
+      for keyword in keywords:
+        print keyword
+        keywords_text = keywords_text + "," + keyword
+    s = Shop.objects.get(pk=num+1)
+    s.tags = keywords_text
+    s.save()
 

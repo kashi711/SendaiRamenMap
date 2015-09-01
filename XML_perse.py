@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+### ホットペッパーのAPIからXMLを取得し、店舗の基本情報をデータベースに登録する
 import urllib2
 from xml.etree.ElementTree import *
 from django.db import models
@@ -10,7 +11,8 @@ import datetime
 from django.contrib.auth.models import User
 from myapp.models import Shop,Myreview,Review,evalInfo
 
-response = urllib2.urlopen('http://api.hotpepper.jp/GourmetSearch/V110/?key=38947b796618c3c5&ShopAddress=%E4%BB%99%E5%8F%B0&genre=G013&Count=100')
+#キーは登録したアカウントのものを使う
+response = urllib2.urlopen('http://api.hotpepper.jp/GourmetSearch/V110/?key=?????????&ShopAddress=%E4%BB%99%E5%8F%B0&genre=G013&Count=100')
 xmlString = response.read()
 elem = fromstring(xmlString)
 length = int(elem.find(".//NumberOfResults").text)
